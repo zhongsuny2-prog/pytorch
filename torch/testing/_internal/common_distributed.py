@@ -47,6 +47,7 @@ from torch.testing._internal.common_utils import (
     skip_but_pass_in_sandcastle_if,
     TEST_CUDA,
     TEST_HPU,
+    TEST_PRIVATEUSE1,
     TEST_WITH_ROCM,
     TEST_WITH_TSAN,
     TEST_XPU,
@@ -150,7 +151,7 @@ logger.setLevel(logging.INFO)
 
 ACCELERATOR_DIST_BACKENDS = ["nccl", "xccl", "hccl"]
 DDP_RANK_DEVICES = ["cuda", "xpu"]
-HAS_ACCELERATOR = TEST_CUDA or TEST_HPU or TEST_XPU
+HAS_ACCELERATOR = TEST_CUDA or TEST_HPU or TEST_XPU or TEST_PRIVATEUSE1
 
 
 class TestSkip(NamedTuple):
@@ -296,6 +297,8 @@ def at_least_x_gpu(x):
         return True
     if TEST_XPU and torch.xpu.device_count() >= x:
         return True
+    if TEST_PRIVATEUSE1 and torch.accelerator.device_count() >= x:
+        return True
     return False
 
 
@@ -324,7 +327,11 @@ def skip_if_lt_x_gpu(x, *, allow_cpu=False):
                 return func(*args, **kwargs)
             if TEST_XPU and torch.xpu.device_count() >= x:
                 return func(*args, **kwargs)
-            if allow_cpu and not (torch.cuda.is_available() or TEST_HPU or TEST_XPU):
+            if TEST_PRIVATEUSE1 and torch.accelerator.device_count() >= x:
+                return func(*args, **kwargs)
+            if allow_cpu and not (
+                torch.cuda.is_available() or TEST_HPU or TEST_XPU or TEST_PRIVATEUSE1
+            ):
                 return func(*args, **kwargs)
             test_skip = TEST_SKIPS[f"multi-gpu-{x}"]
             if not _maybe_handle_skip_if_lt_x_gpu(args, test_skip.message):
